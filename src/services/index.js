@@ -1,1 +1,0 @@
-export { getAllContacts as getAllContactsService, getContactById as getContactByIdService } from './contacts.js';

@@ -1,8 +1,35 @@
 import { ContactsCollection } from '../db/models/contact.js';
 
-export const getAllContacts = async () => {
-  const contacts = await ContactsCollection.find();
-  return contacts;
+export const getAllContacts = async ({
+  page = 1,
+  perPage = 10,
+  sortBy = 'name',
+  sortOrder = 'asc',
+  filters = {},
+}) => {
+  const skip = (page - 1) * perPage;
+  const sortDirection = sortOrder === 'desc' ? -1 : 1;
+  const sortOptions = { [sortBy]: sortDirection };
+
+  const totalItems = await ContactsCollection.countDocuments(filters);
+  const totalPages = Math.ceil(totalItems / perPage);
+  const hasPreviousPage = page > 1;
+  const hasNextPage = page < totalPages;
+
+  const data = await ContactsCollection.find(filters)
+    .sort(sortOptions)
+    .skip(skip)
+    .limit(perPage);
+
+  return {
+    data,
+    page,
+    perPage,
+    totalItems,
+    totalPages,
+    hasPreviousPage,
+    hasNextPage,
+  };
 };
 
 export const getContactById = async (contactId) => {

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "lint": "eslint src/**/*.js",
+    "lint": "eslint src/**/*.js, --fix",
     "start": "node .src/index.js"
   },
   "repository": {
@@ -32,6 +32,7 @@
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "http-errors": "^2.0.0",
+    "joi": "^17.13.3",
     "mongodb": "^6.17.0",
     "mongoose": "^8.15.1",
     "pino-http": "^10.5.0"
