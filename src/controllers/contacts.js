@@ -17,7 +17,7 @@ export const getContactsController = async (req, res) => {
     isFavourite,
   } = req.query;
 
-  const filters = {};
+  const filters = { userId: req.user._id };
   if (type) filters.contactType = type;
   if (isFavourite !== undefined) filters.isFavourite = isFavourite === 'true';
 
@@ -38,11 +38,8 @@ export const getContactsController = async (req, res) => {
 
 export const getContactByIdController = async (req, res) => {
   const { contactId } = req.params;
-  const contact = await getContactById(contactId);
-
-  if (!contact) {
-    throw createHttpError(404, 'Contact not found');
-  }
+  const contact = await getContactById(contactId, req.user._id);
+  if (!contact) throw createHttpError(404, 'Contact not found');
 
   res.status(200).json({
     status: 200,
@@ -52,7 +49,7 @@ export const getContactByIdController = async (req, res) => {
 };
 
 export const createContactController = async (req, res) => {
-  const contact = await createContact(req.body);
+  const contact = await createContact({ ...req.body, userId: req.user._id });
 
   res.status(201).json({
     status: 201,
@@ -63,26 +60,19 @@ export const createContactController = async (req, res) => {
 
 export const deleteContactController = async (req, res) => {
   const { contactId } = req.params;
-  const contact = await deleteContact(contactId);
-
-  if (!contact) {
-    throw createHttpError(404, 'Contact not found');
-  }
-
+  const contact = await deleteContact(contactId, req.user._id);
+  if (!contact) throw createHttpError(404, 'Contact not found');
   res.status(204).send();
 };
 
 export const patchContactController = async (req, res) => {
   const { contactId } = req.params;
-  const result = await updateContact(contactId, req.body);
-
-  if (!result) {
-    throw createHttpError(404, 'Contact not found');
-  }
+  const result = await updateContact(contactId, req.body, req.user._id);
+  if (!result) throw createHttpError(404, 'Contact not found');
 
   res.status(200).json({
     status: 200,
-    message: `Successfully patched a contact!`,
+    message: 'Successfully patched a contact!',
     data: result.contact,
   });
 };

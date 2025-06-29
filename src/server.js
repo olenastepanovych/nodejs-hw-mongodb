@@ -5,6 +5,7 @@ import { getEnvVar } from './utils/getEnvVar.js';
 import contactsRouter from './routers/contacts.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { notFoundHandler } from './middlewares/notFoundHandler.js';
+import authRouter from './routers/auth.js';
 
 const PORT = Number(getEnvVar('PORT', '3000'));
 
@@ -19,7 +20,7 @@ export const setupServer = () => {
       transport: {
         target: 'pino-pretty',
       },
-    })
+    }),
   );
 
   app.get('/', (req, res) => {
@@ -36,4 +37,6 @@ export const setupServer = () => {
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
   });
+
+  app.use('/auth', authRouter);
 };
