@@ -10,7 +10,7 @@ import { registerSchema, loginSchema } from '../validation/auth.js';
 import { sendResetEmailController } from '../controllers/auth.js';
 import { emailSchema } from '../schemas/authSchemas.js';
 import { resetPasswordController } from '../controllers/auth.js';
-import { resetPasswordSchema } from '../schemas/authSсhemas.js';
+import { resetPasswordSchema } from '../schemas/authSchemas.js';
 
 const router = express.Router();
 
