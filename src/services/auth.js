@@ -1,82 +1,75 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
+import createHttpError from 'http-errors';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import createHttpError from 'http-errors';
-import { UsersCollection } from '../db/models/user.js';
-import { SessionsCollection } from '../db/models/session.js';
+import dotenv from 'dotenv';
 
-const generateTokens = (userId) => {
-  const accessToken = jwt.sign({ sub: userId }, process.env.JWT_SECRET, {
-    expiresIn: '15m',
-  });
-  const refreshToken = jwt.sign({ sub: userId }, process.env.JWT_SECRET, {
-    expiresIn: '30d',
-  });
-  return { accessToken, refreshToken };
+import { User } from '../db/models/user.js';
+import { Session } from '../db/models/session.js';
+
+dotenv.config();
+
+const ACCESS_EXPIRES = 15 * 60;
+const REFRESH_EXPIRES = 30 * 24 * 60 * 60;
+
+export const registerUserService = async ({ name, email, password }) => {
+  const existing = await User.findOne({ email });
+  if (existing) return null;
+
+  return User.create({ name, email, password });
 };
 
-export const registerUser = async ({ name, email, password }) => {
-  const existingUser = await UsersCollection.findOne({ email });
-  if (existingUser) throw createHttpError(409, 'Email in use');
+export const loginUserService = async (email, password) => {
+  const user = await User.findOne({ email });
+  if (!user || !(await bcrypt.compare(password, user.password))) {
+    throw createHttpError(401, 'Invalid email or password');
+  }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const user = await UsersCollection.create({
-    name,
-    email,
-    password: hashedPassword,
+  const accessToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    expiresIn: ACCESS_EXPIRES,
+  });
+  const refreshToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    expiresIn: REFRESH_EXPIRES,
   });
 
-  return user;
-};
-
-export const loginUser = async ({ email, password }) => {
-  const user = await UsersCollection.findOne({ email });
-  if (!user) throw createHttpError(401, 'Invalid credentials');
-
-  const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) throw createHttpError(401, 'Invalid credentials');
-
-  await SessionsCollection.deleteMany({ userId: user._id });
-
-  const { accessToken, refreshToken } = generateTokens(user._id);
-  const now = new Date();
-
-  await SessionsCollection.create({
+  await Session.deleteMany({ userId: user._id });
+  await Session.create({
     userId: user._id,
     accessToken,
     refreshToken,
-    accessTokenValidUntil: new Date(now.getTime() + 15 * 60 * 1000),
-    refreshTokenValidUntil: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+    accessTokenValidUntil: new Date(Date.now() + ACCESS_EXPIRES * 1000),
+    refreshTokenValidUntil: new Date(Date.now() + REFRESH_EXPIRES * 1000),
   });
 
   return { accessToken, refreshToken };
 };
 
-export const refreshSession = async (oldRefreshToken) => {
-  const session = await SessionsCollection.findOne({
-    refreshToken: oldRefreshToken,
-  });
-  if (!session || new Date() > session.refreshTokenValidUntil)
-    throw createHttpError(401, 'Refresh token expired');
+export const refreshSessionService = async (refreshToken) => {
+  const oldSession = await Session.findOne({ refreshToken });
+  if (!oldSession) throw createHttpError(401, 'Invalid refresh token');
 
-  await SessionsCollection.deleteOne({ _id: session._id });
+  const accessToken = jwt.sign(
+    { userId: oldSession.userId },
+    process.env.JWT_SECRET,
+    { expiresIn: ACCESS_EXPIRES },
+  );
+  const newRefreshToken = jwt.sign(
+    { userId: oldSession.userId },
+    process.env.JWT_SECRET,
+    { expiresIn: REFRESH_EXPIRES },
+  );
 
-  const { accessToken, refreshToken } = generateTokens(session.userId);
-  const now = new Date();
-
-  await SessionsCollection.create({
-    userId: session.userId,
+  await Session.deleteMany({ userId: oldSession.userId });
+  await Session.create({
+    userId: oldSession.userId,
     accessToken,
-    refreshToken,
-    accessTokenValidUntil: new Date(now.getTime() + 15 * 60 * 1000),
-    refreshTokenValidUntil: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+    refreshToken: newRefreshToken,
+    accessTokenValidUntil: new Date(Date.now() + ACCESS_EXPIRES * 1000),
+    refreshTokenValidUntil: new Date(Date.now() + REFRESH_EXPIRES * 1000),
   });
 
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken: newRefreshToken };
 };
 
-export const logoutUser = async (refreshToken) => {
-  await SessionsCollection.deleteOne({ refreshToken });
+export const logoutUserService = async (refreshToken) => {
+  await Session.deleteOne({ refreshToken });
 };
