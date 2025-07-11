@@ -1,7 +1,5 @@
 import bcrypt from 'bcrypt';
-import createHttpError from 'http-errors';
-import jwt from 'jsonwebtoken';
-
+import createError from 'http-errors';
 import {
   registerUserService,
   loginUserService,
@@ -9,9 +7,10 @@ import {
   logoutUserService,
 } from '../services/auth.js';
 
+import createHttpError from 'http-errors';
+import jwt from 'jsonwebtoken';
 import { sendResetPasswordEmail } from '../services/emailService.js';
 import { User } from '../db/models/user.js';
-import { Session } from '../db/models/session.js';
 
 export const resetPasswordController = async (req, res) => {
   const { token, password } = req.body;
@@ -25,9 +24,8 @@ export const resetPasswordController = async (req, res) => {
       throw createHttpError(404, 'User not found!');
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    user.password = hashedPassword;
-    await Session.deleteMany({ userId: user._id });
+    user.password = password;
+    user.token = null;
     await user.save();
 
     res.status(200).json({
@@ -81,8 +79,7 @@ export const registerUserController = async (req, res) => {
     email,
     password: hashedPassword,
   });
-
-  if (!user) throw createHttpError(409, 'Email in use');
+  if (!user) throw createError(409, 'Email in use');
 
   res.status(201).json({
     status: 201,
