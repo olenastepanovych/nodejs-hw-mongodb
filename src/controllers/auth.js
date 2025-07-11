@@ -1,5 +1,4 @@
 import bcrypt from 'bcrypt';
-import createError from 'http-errors';
 import {
   registerUserService,
   loginUserService,
@@ -79,7 +78,7 @@ export const registerUserController = async (req, res) => {
     email,
     password: hashedPassword,
   });
-  if (!user) throw createError(409, 'Email in use');
+  if (!user) throw createHttpError(409, 'Email in use');
 
   res.status(201).json({
     status: 201,
